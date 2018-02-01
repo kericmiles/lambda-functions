@@ -5,7 +5,6 @@ import os
 import time
 import re
 from datetime import datetime
-zone_id_override = os.environ.get("zone_id_override")
 zone_name_override = os.environ.get("zone_name_override")
 
 logger = logging.getLogger()
@@ -47,21 +46,15 @@ def lambda_handler(event, context):
                 cname = tag.get('Value')
             else:
                 logger.error('Could not retrieve valid hostname value, recieved: {}'.format(tag.get('Value')))
-        if 'ZONEID' in tag.get('Key',{}).lstrip().upper():
-            if tag.get('Value') is not None:
-                dns_zone_id = tag.get('Value')
-
-    if zone_name is not None and cname is not None:
-        if dns_zone_id is None:
-            dns_zone_id = get_zone_id(zone_name)
-        logger.info('Tag values are zone name: {0}|host name: {1}|zone id: {2}|public IP: {3}'.format(zone_name, cname, dns_zone_id, public_ip))
-    
-    if zone_id_override is not None:
-        dns_zone_id = zone_id_override
 
     if zone_name_override is not None:
-        zone_name = zone_name_override
-        
+        if is_valid_hostname(zone_name_override):
+            zone_name = zone_name_override
+
+    if zone_name is not None and cname is not None:
+        dns_zone_id = get_zone_id(zone_name)
+        logger.info('Tag values are zone name: {0}|host name: {1}|zone id: {2}|public IP: {3}'.format(zone_name, cname, dns_zone_id, public_ip))
+
     create_resource_record(dns_zone_id, cname, zone_name, 'A', public_ip)
     return 'Record created for IP {3} with hostname {1} in zone {0} with id {2}'.format(zone_name, cname, dns_zone_id, public_ip)
 
